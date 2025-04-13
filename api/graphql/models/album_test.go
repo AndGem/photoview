@@ -125,14 +125,32 @@ func TestAlbumGetChildrenAndParents(t *testing.T) {
 
 }
 
-
-
 func TestAlbumThumbnail(t *testing.T) {
 	db := test_utils.DatabaseTest(t)
 
 	media := models.Media{
-		Path: "thumb.jpg",
+		Title: "test.png",
+		Path:  "path/test.png",
+		Type:  models.MediaTypePhoto,
+		MediaURL: []models.MediaURL{
+			{
+				MediaName:   "photo.jpg",
+				ContentType: "image/jpeg",
+				Purpose:     models.PhotoHighRes,
+			},
+			{
+				MediaName:   "thumbnail.jpg",
+				ContentType: "image/jpeg",
+				Purpose:     models.PhotoThumbnail,
+			},
+			{
+				MediaName:   "photo.png",
+				ContentType: "image/png",
+				Purpose:     models.MediaOriginal,
+			},
+		},
 	}
+
 	if !assert.NoError(t, db.Save(&media).Error) {
 		return
 	}
@@ -172,9 +190,29 @@ func TestAlbumThumbnail(t *testing.T) {
 		}
 
 		childMedia := models.Media{
-			Path:    "child_media.jpg",
+			Title:   "child_media",
 			AlbumID: childAlbum.ID,
+			Path:    "path/child_media.png",
+			Type:    models.MediaTypePhoto,
+			MediaURL: []models.MediaURL{
+				{
+					MediaName:   "child_media.jpg",
+					ContentType: "image/jpeg",
+					Purpose:     models.PhotoHighRes,
+				},
+				{
+					MediaName:   "thumbnail_child_media.jpg",
+					ContentType: "image/jpeg",
+					Purpose:     models.PhotoThumbnail,
+				},
+				{
+					MediaName:   "photo_child_media.png",
+					ContentType: "image/png",
+					Purpose:     models.MediaOriginal,
+				},
+			},
 		}
+
 		if !assert.NoError(t, db.Save(&childMedia).Error) {
 			return
 		}
