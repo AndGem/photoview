@@ -171,7 +171,6 @@ func TestAlbumThumbnail(t *testing.T) {
 	if !assert.NoError(t, db.Save(&subChild).Error) {
 		return
 	}
-
 	media := models.Media{
 		Title:   "test.png",
 		Path:    "path/test.png",
@@ -215,6 +214,11 @@ func TestAlbumThumbnail(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, media.ID, result.ID)
 	})
+
+	db.Delete(&rootAlbum)
+	db.Delete(&children)
+	db.Delete(&subChild)
+	db.Delete(&media)
 
 	// t.Run("Thumbnail from child media", func(t *testing.T) {
 	// 	parentAlbum := models.Album{
