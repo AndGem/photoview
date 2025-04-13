@@ -141,36 +141,36 @@ func TestAlbumThumbnail(t *testing.T) {
 		return
 	}
 
-	children := []models.Album{
-		{
-			Title:         "child1",
-			Path:          photosChild1Path,
-			ParentAlbumID: &rootAlbum.ID,
-		},
-		{
-			Title:         "child2",
-			Path:          "/photos/child2",
-			ParentAlbumID: &rootAlbum.ID,
-		},
-		{
-			Title: "not_child",
-			Path:  "/videos",
-		},
-	}
+	// children := []models.Album{
+	// 	{
+	// 		Title:         "child1",
+	// 		Path:          photosChild1Path,
+	// 		ParentAlbumID: &rootAlbum.ID,
+	// 	},
+	// 	{
+	// 		Title:         "child2",
+	// 		Path:          "/photos/child2",
+	// 		ParentAlbumID: &rootAlbum.ID,
+	// 	},
+	// 	{
+	// 		Title: "not_child",
+	// 		Path:  "/videos",
+	// 	},
+	// }
 
-	if !assert.NoError(t, db.Save(&children).Error) {
-		return
-	}
+	// if !assert.NoError(t, db.Save(&children).Error) {
+	// 	return
+	// }
 
-	subChild := models.Album{
-		Title:         "subchild",
-		Path:          photosChild1SubchildPath,
-		ParentAlbumID: &children[0].ID,
-	}
+	// subChild := models.Album{
+	// 	Title:         "subchild",
+	// 	Path:          photosChild1SubchildPath,
+	// 	ParentAlbumID: &children[0].ID,
+	// }
 
-	if !assert.NoError(t, db.Save(&subChild).Error) {
-		return
-	}
+	// if !assert.NoError(t, db.Save(&subChild).Error) {
+	// 	return
+	// }
 	media := models.Media{
 		Title:   "test.png",
 		Path:    "path/test.png",
@@ -216,8 +216,8 @@ func TestAlbumThumbnail(t *testing.T) {
 	})
 
 	db.Delete(&rootAlbum)
-	db.Delete(&children)
-	db.Delete(&subChild)
+	// db.Delete(&children)
+	// db.Delete(&subChild)
 	db.Delete(&media)
 
 	// t.Run("Thumbnail from child media", func(t *testing.T) {
