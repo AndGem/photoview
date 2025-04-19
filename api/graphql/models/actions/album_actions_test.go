@@ -1,6 +1,7 @@
 package actions_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/photoview/photoview/api/graphql/models"
@@ -163,6 +164,8 @@ func TestAlbumCover(t *testing.T) {
 			albumThumb, err := album.Thumbnail(db)
 			assert.NoError(t, err)
 
+			fmt.Printf("Expected pic1, got %s", albumThumb.Title)
+
 			if albumThumb.Title != "pic1" {
 				t.Fatalf("Expected pic1, got %s", albumThumb.Title)
 			}
@@ -177,6 +180,8 @@ func TestAlbumCover(t *testing.T) {
 
 			albumThumb, err := album.Thumbnail(db)
 			assert.NoError(t, err)
+
+			fmt.Printf("Expected pic4, got %s", albumThumb.Title)
 
 			if albumThumb.Title != "pic4" {
 				t.Fatalf("Expected pic4, got %s", albumThumb.Title)
@@ -193,6 +198,8 @@ func TestAlbumCover(t *testing.T) {
 
 		resetThumb, err := resetAlbum.Thumbnail(db)
 		assert.NoError(t, err)
+
+		fmt.Printf("Expected pic3, got %s", resetAlbum.Title)
 
 		if resetAlbum.Title != "pic3" {
 			t.Fatalf("Expected pic3, got %s", resetAlbum.Title)
