@@ -163,6 +163,10 @@ func TestAlbumCover(t *testing.T) {
 			albumThumb, err := album.Thumbnail(db)
 			assert.NoError(t, err)
 
+			if albumThumb.Title != "pic1" {
+				t.Fatalf("Expected pic1, got %s", albumThumb.Title)
+			}
+
 			// Should return pic1 since no coverID has been set
 			assert.EqualValues(t, "pic1", albumThumb.Title)
 		}
