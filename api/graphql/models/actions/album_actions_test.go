@@ -178,6 +178,10 @@ func TestAlbumCover(t *testing.T) {
 			albumThumb, err := album.Thumbnail(db)
 			assert.NoError(t, err)
 
+			if albumThumb.Title != "pic4" {
+				t.Fatalf("Expected pic4, got %s", albumThumb.Title)
+			}
+
 			// coverID has already been set
 			assert.EqualValues(t, "pic4", albumThumb.Title)
 		}
@@ -189,6 +193,10 @@ func TestAlbumCover(t *testing.T) {
 
 		resetThumb, err := resetAlbum.Thumbnail(db)
 		assert.NoError(t, err)
+
+		if resetAlbum.Title != "pic3" {
+			t.Fatalf("Expected pic3, got %s", resetAlbum.Title)
+		}
 
 		assert.Equal(t, "pic3", resetThumb.Title)
 	})
