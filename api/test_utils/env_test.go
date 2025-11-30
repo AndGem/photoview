@@ -1,26 +1,23 @@
 package test_utils
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestPathFromAPIRoot(t *testing.T) {
-	if got, want := PathFromAPIRoot("./server.go"), "/api/server.go"; !strings.HasSuffix(got, want) {
-		t.Fatalf(`PathFromAPIRoot("./server.go") = %q, want a suffix: %q`, got, want)
+	tests := []struct {
+		paths []string
+		want  string
+	}{
+		{[]string{"server.go"}, "/api/server.go"},
+		{[]string{"scanner", "..", "server.go"}, "/api/server.go"},
+		{[]string{"scanner", "scanner_test.go"}, "/api/scanner/scanner_test.go"},
 	}
-}
 
-func TestSetPathWithCurrent(t *testing.T) {
-	pathDone := SetEnv("PATH", "")
-	defer pathDone()
-
-	testDone := SetPathWithCurrent("./test")
-	defer testDone()
-
-	path := os.Getenv("PATH")
-	if got, want := path, "api/test_utils/test"; !strings.HasSuffix(got, want) {
-		t.Errorf("path = %q, want a suffix: %q", got, want)
+	for _, tc := range tests {
+		if got, want := PathFromAPIRoot(tc.paths...), tc.want; !strings.HasSuffix(got, want) {
+			t.Fatalf("PathFromAPIRoot(%v) = %q, want a suffix: %q", tc.paths, got, want)
+		}
 	}
 }

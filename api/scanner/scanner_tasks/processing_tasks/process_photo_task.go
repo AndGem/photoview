@@ -1,24 +1,14 @@
 package processing_tasks
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"path"
 
 	"github.com/photoview/photoview/api/graphql/models"
+	"github.com/photoview/photoview/api/log"
 	"github.com/photoview/photoview/api/scanner/media_encoding"
-	"github.com/photoview/photoview/api/scanner/media_encoding/media_utils"
 	"github.com/photoview/photoview/api/scanner/scanner_task"
 	"github.com/pkg/errors"
-
-	// Image decoders
-	_ "image/gif"
-	_ "image/png"
-
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/tiff"
-	_ "golang.org/x/image/webp"
 )
 
 type ProcessPhotoTask struct {
@@ -33,7 +23,7 @@ func (t ProcessPhotoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 	updatedURLs := make([]*models.MediaURL, 0)
 	photo := mediaData.Media
 
-	log.Printf("Processing photo: %s\n", photo.Path)
+	log.Info(ctx, "Processing photo", "photo", photo.Path)
 
 	photoURLFromDB := makePhotoURLChecker(ctx.GetDB(), photo.ID)
 
@@ -81,7 +71,7 @@ func (t ProcessPhotoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 		baseImagePath = path.Join(mediaCachePath, highResURL.MediaName)
 
 		if _, err := os.Stat(baseImagePath); os.IsNotExist(err) {
-			fmt.Printf("High-res photo found in database but not in cache, re-encoding photo to cache: %s\n", highResURL.MediaName)
+			log.Info(ctx, "High-res photo found in database but not in cache, re-encoding photo to cache", "media_name", highResURL.MediaName)
 			updatedURLs = append(updatedURLs, highResURL)
 
 			err = mediaData.EncodeHighRes(baseImagePath)
@@ -91,12 +81,11 @@ func (t ProcessPhotoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 		}
 	}
 
-	var photoDimensions *media_utils.PhotoDimensions
 	// Save original photo to database
 	if origURL == nil {
 
 		// Make sure photo dimensions is set
-		photoDimensions, err = media_utils.GetPhotoDimensions(baseImagePath)
+		photoDimensions, err := media_encoding.GetPhotoDimensions(photo.Path)
 		if err != nil {
 			return []*models.MediaURL{}, err
 		}
@@ -124,7 +113,7 @@ func (t ProcessPhotoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 
 		if _, err := os.Stat(thumbPath); os.IsNotExist(err) {
 			updatedURLs = append(updatedURLs, thumbURL)
-			fmt.Printf("Thumbnail photo found in database but not in cache, re-encoding photo to cache: %s\n", thumbURL.MediaName)
+			log.Info(ctx, "Thumbnail photo found in database but not in cache, re-encoding photo to cache", "media_name", thumbURL.MediaName)
 
 			_, err := media_encoding.EncodeThumbnail(ctx.GetDB(), baseImagePath, thumbPath)
 			if err != nil {

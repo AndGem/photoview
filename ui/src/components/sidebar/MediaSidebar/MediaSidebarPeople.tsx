@@ -11,7 +11,9 @@ import { Menu } from '@headlessui/react'
 import { Button } from '../../../primitives/form/Input'
 import { ArrowPopoverPanel } from '../Sharing'
 import { isNil, tailwindClassNames } from '../../../helpers/utils'
-import MergeFaceGroupsModal from '../../../Pages/PeoplePage/SingleFaceGroup/MergeFaceGroupsModal'
+import MergeFaceGroupsModal, {
+  MergeFaceGroupsModalState,
+} from '../../../Pages/PeoplePage/SingleFaceGroup/MergeFaceGroupsModal'
 import { useDetachImageFaces } from '../../../Pages/PeoplePage/SingleFaceGroup/DetachImageFacesModal'
 import MoveImageFacesModal from '../../../Pages/PeoplePage/SingleFaceGroup/MoveImageFacesModal'
 import { FaceDetails } from '../../../Pages/PeoplePage/PeoplePage'
@@ -61,7 +63,9 @@ const PersonMoreMenu = ({
 }: PersonMoreMenuProps) => {
   const { t } = useTranslation()
 
-  const [mergeModalOpen, setMergeModalOpen] = useState(false)
+  const [mergeModalState, setMergeModalState] = useState(
+    MergeFaceGroupsModalState.Closed
+  )
   const [moveModalOpen, setMoveModalOpen] = useState(false)
 
   const refetchQueries = [
@@ -81,9 +85,9 @@ const PersonMoreMenu = ({
   const modals = (
     <>
       <MergeFaceGroupsModal
-        sourceFaceGroup={face.faceGroup}
-        open={mergeModalOpen}
-        setOpen={setMergeModalOpen}
+        preselectedDestinationFaceGroup={face.faceGroup}
+        state={mergeModalState}
+        setState={setMergeModalState}
         refetchQueries={refetchQueries}
       />
       <MoveImageFacesModal
@@ -128,7 +132,9 @@ const PersonMoreMenu = ({
               label={t('people_page.action_label.change_label', 'Change label')}
             />
             <PersonMoreMenuItem
-              onClick={() => setMergeModalOpen(true)}
+              onClick={() =>
+                setMergeModalState(MergeFaceGroupsModalState.SelectDestination)
+              }
               className="border-b"
               label={t('sidebar.people.action_label.merge_face', 'Merge face')}
             />
@@ -161,7 +167,7 @@ const MediaSidebarPerson = ({ face, menuFlipped }: MediaSidebarFaceProps) => {
   const [changeLabel, setChangeLabel] = useState(false)
 
   return (
-    <li className="inline-block">
+    <li className="flex flex-col items-center">
       <Link to={`/people/${face.faceGroup.id}`}>
         <FaceCircleImage imageFace={face} selectable={true} size="92px" />
       </Link>
@@ -194,7 +200,7 @@ const MediaSidebarPeople = ({ media }: MediaSidebarFacesProps) => {
   const { t } = useTranslation()
 
   const faceElms = (media.faces ?? []).map((face, i) => (
-    <MediaSidebarPerson key={face.id} face={face} menuFlipped={i == 0} />
+    <MediaSidebarPerson key={face.id} face={face} menuFlipped={i % 3 == 0} />
   ))
 
   if (faceElms.length == 0) return null
@@ -204,13 +210,7 @@ const MediaSidebarPeople = ({ media }: MediaSidebarFacesProps) => {
       <SidebarSectionTitle>
         {t('sidebar.people.title', 'People')}
       </SidebarSectionTitle>
-      <div
-        className="overflow-x-auto mb-[-200px]"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        <ul className="flex gap-4 mx-4">{faceElms}</ul>
-        <div className="h-[200px]"></div>
-      </div>
+      <ul className="grid grid-cols-3 gap-4 px-4">{faceElms}</ul>
     </SidebarSection>
   )
 }

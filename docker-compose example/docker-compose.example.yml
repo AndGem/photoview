@@ -1,4 +1,19 @@
 services:
+  ## Makes sure that the media cache folder is created with the correct permissions
+  photoview-prepare:
+    image: photoview/photoview:2
+    hostname: photoview-prepare
+    container_name: photoview-prepare
+    user: root
+    entrypoint: []
+    command: /bin/bash -c "sleep 1 && chown -R photoview:photoview /home/photoview/media-cache"
+    cap_add:
+      - CHOWN
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro" ## use local time from host
+      - "/etc/timezone:/etc/timezone:ro"   ## use timezone from host
+      - "${HOST_PHOTOVIEW_LOCATION}/storage:/home/photoview/media-cache"
+
   photoview:
     image: photoview/photoview:2
     labels:
@@ -13,6 +28,8 @@ services:
     ## Comment out the entire `depends_on` section if PHOTOVIEW_DATABASE_DRIVER is set to `sqlite` in the .env
     ## Or comment out the `mariadb:` and uncomment the `postgres:` if PHOTOVIEW_DATABASE_DRIVER is set to `postgres`
     depends_on:
+      photoview-prepare:
+        condition: service_completed_successfully
       # postgres:
       mariadb:
         condition: service_healthy
@@ -33,7 +50,11 @@ services:
       ## If you change this, remember to update the port mapping (under the `ports:`) above!
       # PHOTOVIEW_LISTEN_PORT: 80
       ## Uncomment the next variable and set a different value to set the location of the media cache inside the container.
-      ## If you change this, remember to update the right side of the storage volume mount (under the `volumes:`) below!
+      ## Make sure that you know why you are doing this.
+      ## If you change this, remember to update the corresponding paths in:
+      ## - the command of the `photoview-prepare` service
+      ## - the `photoview-prepare` service's right side of the storage volume mount (under the `volumes:`)
+      ## - the right side of the storage volume mount (under the `volumes:`) below
       # PHOTOVIEW_MEDIA_CACHE: "/home/photoview/media-cache"
       ## Optional: If you are using Samba/CIFS-Share and experience problems with "directory not found"
       ## Enable the following Godebug
@@ -81,8 +102,10 @@ services:
       # - "${HOST_PHOTOVIEW_MEDIA_FAMILY}:/photos/Family:ro"
 
   ## Watchtower upgrades services automatically (optional)
+  ## WARNING: the automatic version upgrades may silently generate unexpected problems,
+  ##   so please periodically check the logs
   watchtower:
-    image: containrrr/watchtower:latest
+    image: nickfedor/watchtower:latest
     hostname: watchtower
     container_name: watchtower
     restart: unless-stopped
@@ -113,9 +136,9 @@ services:
     security_opt: ## see https://github.com/MariaDB/mariadb-docker/issues/434#issuecomment-1136151239
       - seccomp:unconfined
       - apparmor:unconfined
-    ## Uncomment next 2 lines if you want to access the database directly
+    ## Uncomment the following 2 lines if you want to access the database directly
     # ports:
-      # - "3306:3306"
+      # - "3306:3306" ## host:container
     environment:
       MARIADB_AUTO_UPGRADE: "1"
       MARIADB_DATABASE: ${MARIADB_DATABASE}
@@ -135,9 +158,34 @@ services:
       retries: 5
       start_period: 3m
 
-  ## Uncomment the `postgres` service if PHOTOVIEW_DATABASE_DRIVER is set to `postgres` in the .env
+  ## Uncomment the `postgres-autoupgrade` service if you want to upgrade PostgreSQL automatically, or follow the
+  ## official PostgreSQL upgrade guide https://www.postgresql.org/docs/current/upgrading.html manually.
+  ## Don't forget to uncomment the 3 `depends_on` lines in the `postgres` service.
+  ## This service will upgrade the PostgreSQL database to the version, specified in the `image` tag.
+  ## Read more on the https://hub.docker.com/r/pgautoupgrade/pgautoupgrade
+  ## Tip: Back up the Photoview data before autoupgrade to a new PostgreSQL version.
+  ## It is an optional service to simplify the upgrade process. You can also upgrade PostgreSQL manually.
+  ## It is safe to keep it enabled, as if it detects no upgrade is needed, it exits immediately.
+#   postgres-autoupgrade:
+#     image: pgautoupgrade/pgautoupgrade:18-alpine
+#     hostname: pgsql-upg
+#     container_name: pgsql-upg
+#     restart: "no"
+#     environment:
+#       POSTGRES_DB: ${PGSQL_DATABASE}
+#       POSTGRES_USER: ${PGSQL_USER}
+#       POSTGRES_PASSWORD: ${PGSQL_PASSWORD}
+#       PGAUTO_ONESHOT: "yes"
+#     volumes:
+#       ## Example:
+#       ## - "/host/folder:/container/folder"
+#       - "/etc/localtime:/etc/localtime:ro" ## use local time from host
+#       - "/etc/timezone:/etc/timezone:ro"   ## use timezone from host
+#       - "${HOST_PHOTOVIEW_LOCATION}/database/postgres:/var/lib/postgresql" ## DO NOT REMOVE
+
+## Uncomment the `postgres` service if PHOTOVIEW_DATABASE_DRIVER is set to `postgres` in the .env
 #  postgres:
-#    image: postgres:16-alpine
+#    image: postgres:18-alpine
 #    labels:
 #      - "com.centurylinklabs.watchtower.enable=true"
 #    hostname: photoview-pgsql
@@ -148,9 +196,13 @@ services:
 #    security_opt:
 #      - seccomp:unconfined
 #      - apparmor:unconfined
-#    ## Uncomment next 2 lines if you want to access the database directly
+#    ## Uncomment the following 3 lines if you want to use the autoupgrade service
+#    #depends_on:
+#    #  postgres-autoupgrade:
+#    #    condition: service_completed_successfully
+#    ## Uncomment the following 2 lines if you want to access the database directly
 #    # ports:
-#      # - 5432:5432
+#      # - "5432:5432" ## host:container
 #    environment:
 #      POSTGRES_DB: ${PGSQL_DATABASE}
 #      POSTGRES_USER: ${PGSQL_USER}
@@ -161,7 +213,7 @@ services:
 #      ## - "/host/folder:/container/folder"
 #      - "/etc/localtime:/etc/localtime:ro" ## use local time from host
 #      - "/etc/timezone:/etc/timezone:ro"   ## use timezone from host
-#      - "${HOST_PHOTOVIEW_LOCATION}/database/postgres:/var/lib/postgresql/data" ## DO NOT REMOVE
+#      - "${HOST_PHOTOVIEW_LOCATION}/database/postgres:/var/lib/postgresql" ## DO NOT REMOVE
 #    healthcheck:
 #      test: pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
 #      interval: 1m

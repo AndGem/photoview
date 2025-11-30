@@ -98,9 +98,9 @@ export const loadTranslations = () => {
         })
         return
       case LanguageTranslation.Ukrainian:
-        import('./extractedTranslations/ua/translation.json').then(language => {
-          i18n.addResourceBundle('ua', 'translation', language)
-          i18n.changeLanguage('ua')
+        import('./extractedTranslations/uk/translation.json').then(language => {
+          i18n.addResourceBundle('uk', 'translation', language)
+          i18n.changeLanguage('uk')
         })
         return
       case LanguageTranslation.German:
@@ -115,7 +115,15 @@ export const loadTranslations = () => {
           i18n.changeLanguage('ru')
         })
         return
-      case LanguageTranslation.TraditionalChinese:
+      case LanguageTranslation.TraditionalChineseTW:
+        import('./extractedTranslations/zh-TW/translation.json').then(
+          language => {
+            i18n.addResourceBundle('zh-TW', 'translation', language)
+            i18n.changeLanguage('zh-TW')
+          }
+        )
+        return
+      case LanguageTranslation.TraditionalChineseHK:
         import('./extractedTranslations/zh-HK/translation.json').then(
           language => {
             i18n.addResourceBundle('zh-HK', 'translation', language)
@@ -149,8 +157,19 @@ export const loadTranslations = () => {
           i18n.changeLanguage('tr')
         })
         return
+      case LanguageTranslation.Japanese:
+        import('./extractedTranslations/ja/translation.json').then(language => {
+          i18n.addResourceBundle('ja', 'translation', language)
+          i18n.changeLanguage('ja')
+        })
+        return
+      default:
+        import('./extractedTranslations/en/translation.json').then(language => {
+          i18n.addResourceBundle('en', 'translation', language)
+          i18n.changeLanguage('en')
+        })
+        // Throw the error if we have an unhandled language
+        exhaustiveCheck(language)
     }
-
-    exhaustiveCheck(language)
   }, [data?.myUserPreferences.language])
 }

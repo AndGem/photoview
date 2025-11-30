@@ -11,7 +11,7 @@ import (
 )
 
 func TestMagic(t *testing.T) {
-	mediaPath := test_utils.PathFromAPIRoot("./scanner/test_media/real_media")
+	mediaPath := test_utils.PathFromAPIRoot("scanner", "test_media", "real_media")
 
 	tests := []struct {
 		filepath string
@@ -26,7 +26,7 @@ func TestMagic(t *testing.T) {
 		{"webp.webp", TypeWebP},
 
 		{"heif.heif", mediaType("image/heic")},
-		{"jpeg2000.jp2", mediaType("image/jp2")},
+		{"jpg2000.jp2", mediaType("image/jp2")},
 		{"tiff.tiff", mediaType("image/tiff")},
 
 		{"mp4.mp4", TypeMP4},
@@ -69,7 +69,7 @@ func TestMagicNoInit(t *testing.T) {
 		libmagic.err = nil
 	})
 
-	mediaPath := test_utils.PathFromAPIRoot("./scanner/test_media/real_media")
+	mediaPath := test_utils.PathFromAPIRoot("scanner", "test_media", "real_media")
 	file := filepath.Join(mediaPath, "file.pdf")
 
 	got := GetMediaType(file)
@@ -79,7 +79,7 @@ func TestMagicNoInit(t *testing.T) {
 }
 
 func getMediaFiles() []string {
-	mediaPath := test_utils.PathFromAPIRoot("./scanner/test_media/real_media")
+	mediaPath := test_utils.PathFromAPIRoot("scanner", "test_media", "real_media")
 	var files []string
 	for _, f := range []string{
 		"file.pdf",
@@ -91,7 +91,7 @@ func getMediaFiles() []string {
 		"webp.webp",
 
 		"heif.heif",
-		"jpeg2000.jp2",
+		"jpg2000.jp2",
 		"tiff.tiff",
 
 		"mp4.mp4",

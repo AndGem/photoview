@@ -21,11 +21,13 @@ enum LanguageTranslation {
   Ukrainian,
   German,
   Russian,
-  TraditionalChinese,
+  TraditionalChineseTW,
+  TraditionalChineseHK,
   SimplifiedChinese,
   Portuguese,
   Basque,
-  Turkish
+  Turkish,
+  Japanese,
 }
 
 "Preferences for regular users"

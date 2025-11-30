@@ -13,7 +13,7 @@ import (
 )
 
 func TestCounterpartFilesTaskMediaFound(t *testing.T) {
-	mediaPath := test_utils.PathFromAPIRoot("scanner/test_media/real_media")
+	mediaPath := test_utils.PathFromAPIRoot("scanner", "test_media", "real_media")
 
 	tests := []struct {
 		name                 string
@@ -73,8 +73,7 @@ func TestCounterpartFilesTaskMediaFound(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			done := test_utils.SetEnv(string(utils.EnvDisableRawProcessing), fmt.Sprintf("%v", tc.disableRawProcessing))
-			defer done()
+			t.Setenv(string(utils.EnvDisableRawProcessing), fmt.Sprintf("%v", tc.disableRawProcessing))
 
 			ctx := scanner_task.NewTaskContext(context.Background(), nil, nil, nil)
 

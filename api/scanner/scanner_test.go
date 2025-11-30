@@ -1,14 +1,11 @@
 package scanner_test
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/photoview/photoview/api/graphql/models"
@@ -18,7 +15,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(test_utils.IntegrationTestRun(m))
+	test_utils.IntegrationTestRun(m)
 }
 
 func TestFullScan(t *testing.T) {
@@ -33,20 +30,58 @@ func TestFullScan(t *testing.T) {
 
 	rootAlbum := models.Album{
 		Title: "root album",
-		Path:  "./test_media/library",
+		Path:  "./test_media",
 	}
 
-	wantImages := []string{
-		"buttercup_close_summer_yellow.jpg",
-		"lilac_lilac_bush_lilac.jpg",
-		"mount_merapi_volcano_indonesia.jpg",
+	wantWebPhotos := []string{
+		"bmp.bmp",
+		"gif.gif",
+		"jpeg.jpg",
+		"png.png",
+		"webp.webp",
+
+		"jpg_with_file.jpg",
+		"recoverable_bad_rst_marker.jpg",
+		"standalone_jpg.jpg",
+
 		"boy1.jpg",
 		"boy2.jpg",
+		"buttercup_close_summer_yellow.jpg",
 		"girl_black_hair2.jpg",
 		"girl_blond1.jpg",
 		"girl_blond2.jpg",
 		"girl_blond3.jpg",
+		"lilac_lilac_bush_lilac.jpg",
+		"mount_merapi_volcano_indonesia.jpg",
+
+		"left_arrow_normal_web.jpg",
+		"up_arrow_90cw_web.jpg",
 	}
+	wantNonWebPhotos := []string{
+		"heif.heif",
+		"jpegxl.jxl",
+		"jpg2000.jp2",
+		"raw_with_file.tiff",
+		"raw_with_jpg.tiff",
+		"standalone_raw.tiff",
+		"tiff.tiff",
+
+		"left_arrow_normal_nonweb.tiff",
+		"up_arrow_90cw_nonweb.tiff",
+	}
+	wantWebVideos := []string{
+		"mp4.mp4",
+		"mpeg.mpg",
+		"ogg.ogg",
+		"webm.webm",
+	}
+	wantNonWebVideos := []string{
+		"avi.avi",
+		"mkv.mkv",
+		"quicktime.mov",
+		"wmv.wmv",
+	}
+
 	wantFaceGroups := [][]string{
 		{"boy1.jpg", "boy2.jpg"},
 		{"girl_black_hair2.jpg"},
@@ -80,17 +115,24 @@ func TestFullScan(t *testing.T) {
 			t.Fatal("get all media error:", err)
 		}
 
-		want := slices.Clone(wantImages)
+		want := []string{}
+		want = append(want, wantWebPhotos...)
+		want = append(want, wantNonWebPhotos...)
+		want = append(want, wantWebVideos...)
+		want = append(want, wantNonWebVideos...)
 		slices.Sort(want)
 
 		got := make([]string, len(allMedia))
 		for i, media := range allMedia {
 			got[i] = media.Title
+			if media.Blurhash == nil {
+				t.Errorf("media %q(%s) doesn't have Blurhash, while it should have", media.Title, media.Type)
+			}
 		}
 		slices.Sort(got)
 
 		if diff := cmp.Diff(got, want); diff != "" {
-			t.Errorf("all media diff:\n%s", diff)
+			t.Errorf("all media diff (-got, +want):\n%s", diff)
 		}
 	})
 
@@ -100,16 +142,33 @@ func TestFullScan(t *testing.T) {
 			t.Fatal("get all media url error:", err)
 		}
 
-		if got, want := len(allMediaURL), 18; got != want {
-			t.Errorf("got = %d, want: %v", got, want)
+		var want []string
+		want = append(want, wantWebPhotos...)
+		for _, name := range wantWebPhotos {
+			want = append(want, "thumbnail_"+strings.ReplaceAll(name, ".", "_")+".jpg")
 		}
 
-		want := slices.Clone(wantImages)
-		wantThumbs := slices.Clone(wantImages)
-		for _, thumb := range wantThumbs {
-			want = append(want, "thumbnail_"+thumb)
+		want = append(want, wantNonWebPhotos...)
+		for _, name := range wantNonWebPhotos {
+			want = append(want, "thumbnail_"+strings.ReplaceAll(name, ".", "_")+".jpg")
+			want = append(want, "highres_"+strings.ReplaceAll(name, ".", "_")+".jpg")
 		}
+
+		want = append(want, wantWebVideos...)
+		for _, name := range wantWebVideos {
+			want = append(want, "video_thumb_"+strings.ReplaceAll(name, ".", "_")+".jpg")
+		}
+
+		for _, name := range wantNonWebVideos {
+			want = append(want, "video_thumb_"+strings.ReplaceAll(name, ".", "_")+".jpg")
+			want = append(want, "web_video_"+strings.ReplaceAll(name, ".", "_")+".mp4")
+		}
+
 		slices.Sort(want)
+
+		if got, want := len(allMediaURL), len(want); got != want {
+			t.Errorf("got = %d, want: %v", got, want)
+		}
 
 		got := make([]string, len(allMediaURL))
 		for i, media := range allMediaURL {
@@ -118,23 +177,19 @@ func TestFullScan(t *testing.T) {
 		slices.Sort(got)
 
 		if diff := cmp.Diff(got, want, cmp.Comparer(equalNameWithoutSuffix)); diff != "" {
-			t.Errorf("all media diff:\n%s", diff)
+			t.Errorf("all media url diff (-got, +want):\n%s", diff)
 		}
 	})
 
 	t.Run("CheckFaceGroup", func(t *testing.T) {
-		ctx, done := context.WithTimeout(t.Context(), time.Second*5)
-		defer done()
+		var allFaceGroups []*models.FaceGroup
+		if err := db.Find(&allFaceGroups).Error; err != nil {
+			t.Fatal("get face groups error:", err)
+		}
 
-		waitFor(ctx, t, time.Second/2, func() bool {
-			var allFaceGroups []*models.FaceGroup
-			if err := db.Find(&allFaceGroups).Error; err != nil {
-				t.Fatal("get face groups error:", err)
-				return false
-			}
-
-			return len(allFaceGroups) == len(wantFaceGroups)
-		})
+		if got, want := len(allFaceGroups), len(wantFaceGroups); got != want {
+			t.Errorf("len(allFaceGroups) = %d, want: %d", got, want)
+		}
 	})
 
 	t.Run("CheckFaces", func(t *testing.T) {
@@ -152,46 +207,59 @@ func TestFullScan(t *testing.T) {
 		got := groupMediaWithFaces(allImageFaces)
 
 		if diff := cmp.Diff(got, wantFaceGroups); diff != "" {
-			t.Errorf("all media diff:\n%s", diff)
+			t.Errorf("all media diff (-got, +want):\n%s", diff)
+		}
+	})
+
+	t.Run("CheckPhotosOrientation", func(t *testing.T) {
+		photoFiles := []string{
+			"left_arrow_normal_web.jpg",
+			"up_arrow_90cw_web.jpg",
+			"left_arrow_normal_nonweb.tiff",
+			"up_arrow_90cw_nonweb.tiff",
+		}
+		for _, filename := range photoFiles {
+			var media models.Media
+			if err := db.Preload("MediaURL").Where("title = ?", filename).Find(&media).Error; err != nil {
+				t.Fatalf("can't find media with name %q: %v", filename, err)
+			}
+
+			thumbnail, err := media.GetThumbnail()
+			if err != nil {
+				t.Fatalf("can't get thumbnail of media %q: %v", filename, err)
+			}
+
+			switch {
+			case strings.HasPrefix(filename, "up"):
+				if thumbnail.Width >= thumbnail.Height {
+					t.Errorf("media %q dimension: %dx%d, which should be a vertial photo", filename, thumbnail.Width, thumbnail.Height)
+				}
+			case strings.HasPrefix(filename, "left"):
+				if thumbnail.Width <= thumbnail.Height {
+					t.Errorf("media %q dimension: %dx%d, which should be a horizontal photo", filename, thumbnail.Width, thumbnail.Height)
+				}
+			}
 		}
 	})
 }
 
 func equalNameWithoutSuffix(a, b string) bool {
 	extA := filepath.Ext(a)
-	mainA := strings.TrimRight(a, extA)
+	mainA := strings.TrimSuffix(a, extA)
 	extB := filepath.Ext(b)
-	mainB := strings.TrimRight(b, extB)
+	mainB := strings.TrimSuffix(b, extB)
 
 	// ext names are not same
 	if extA != extB {
 		return false
 	}
 
-	// a is not part of b and b is not part of a
-	if strings.Index(mainA, mainB) < 0 && strings.Index(mainB, mainA) < 0 {
+	// a is not prefix of b and b is not prefix of a
+	if strings.HasPrefix(mainA, mainB) && strings.HasPrefix(mainB, mainA) {
 		return false
 	}
 
 	return true
-}
-
-func waitFor(ctx context.Context, t *testing.T, interval time.Duration, checkFn func() bool) {
-	t.Helper()
-
-	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatal("check timeout")
-			return
-		case <-ticker.C:
-		}
-
-		if checkFn() {
-			return
-		}
-	}
 }
 
 func groupMediaWithFaces(medias []*models.ImageFace) [][]string {
@@ -212,6 +280,18 @@ func groupMediaWithFaces(medias []*models.ImageFace) [][]string {
 	slices.SortFunc(ret, func(a, b []string) int {
 		return strings.Compare(fmt.Sprint(a), fmt.Sprint(b))
 	})
+
+	return ret
+}
+
+func copyFilelistWithJpgExt(list []string) []string {
+	ret := make([]string, 0, len(list))
+	for _, f := range list {
+		ext := filepath.Ext(f)
+		main := strings.TrimSuffix(f, ext)
+
+		ret = append(ret, main+".jpg")
+	}
 
 	return ret
 }

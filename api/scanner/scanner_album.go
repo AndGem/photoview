@@ -2,11 +2,11 @@ package scanner
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 
 	"github.com/photoview/photoview/api/graphql/models"
+	"github.com/photoview/photoview/api/log"
 	"github.com/photoview/photoview/api/scanner/media_encoding"
 	"github.com/photoview/photoview/api/scanner/scanner_task"
 	"github.com/photoview/photoview/api/scanner/scanner_tasks"
@@ -77,7 +77,7 @@ var ErrorInvalidRootPath = errors.New("invalid root path")
 func ValidRootPath(rootPath string) bool {
 	_, err := os.Stat(rootPath)
 	if err != nil {
-		log.Printf("Warn: invalid root path: '%s'\n%s\n", rootPath, err)
+		log.Warn(nil, "invalid root path", "root_path", rootPath, "error", err)
 		return false
 	}
 
@@ -102,7 +102,7 @@ func ScanAlbum(ctx scanner_task.TaskContext) error {
 		mediaData := media_encoding.NewEncodeMediaData(media)
 
 		if err := scanMedia(ctx, media, &mediaData, i, len(albumMedia)); err != nil {
-			scanner_utils.ScannerError("Error scanning media for album (%d) file (%s): %s\n", ctx.GetAlbum().ID, media.Path, err)
+			scanner_utils.ScannerError(ctx, "Error scanning media for album (%d) file (%s): %s\n", ctx.GetAlbum().ID, media.Path, err)
 		}
 	}
 
@@ -124,10 +124,11 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 
 	for _, item := range dirContent {
 		mediaPath := path.Join(ctx.GetAlbum().Path, item.Name())
+		log.Info(ctx, "Check the media", "media_path", mediaPath)
 
 		isDirSymlink, err := utils.IsDirSymlink(mediaPath)
 		if err != nil {
-			log.Printf("Cannot detect whether %s is symlink to a directory. Pretending it is not", mediaPath)
+			log.Warn(ctx, "Cannot detect whether the path is symlink to a directory. Pretending it is not", "media_path", mediaPath)
 			isDirSymlink = false
 		}
 
@@ -160,7 +161,7 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 			})
 
 			if err != nil {
-				scanner_utils.ScannerError("Error scanning media for album (%d): %s\n", ctx.GetAlbum().ID, err)
+				scanner_utils.ScannerError(ctx, "Error scanning media for album (%d): %s\n", ctx.GetAlbum().ID, err)
 				continue
 			}
 		}

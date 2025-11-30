@@ -17,13 +17,15 @@ export enum LanguageTranslation {
   French = "French",
   German = "German",
   Italian = "Italian",
+  Japanese = "Japanese",
   Polish = "Polish",
   Portuguese = "Portuguese",
   Russian = "Russian",
   SimplifiedChinese = "SimplifiedChinese",
   Spanish = "Spanish",
   Swedish = "Swedish",
-  TraditionalChinese = "TraditionalChinese",
+  TraditionalChineseHK = "TraditionalChineseHK",
+  TraditionalChineseTW = "TraditionalChineseTW",
   Turkish = "Turkish",
   Ukrainian = "Ukrainian",
 }
@@ -48,18 +50,6 @@ export enum NotificationType {
 export enum OrderDirection {
   ASC = "ASC",
   DESC = "DESC",
-}
-
-/**
- * Supported downsampling filters for thumbnail generation
- */
-export enum ThumbnailFilter {
-  Box = "Box",
-  CatmullRom = "CatmullRom",
-  Lanczos = "Lanczos",
-  Linear = "Linear",
-  MitchellNetravali = "MitchellNetravali",
-  NearestNeighbor = "NearestNeighbor",
 }
 
 //==============================================================

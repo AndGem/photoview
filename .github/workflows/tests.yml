@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: ['*']
+    branches: ["*"]
   pull_request:
     branches: [master]
 
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: ['sqlite', 'mysql', 'postgres']
+        database: ["sqlite", "mysql", "postgres"]
 
     services:
       mariadb:
@@ -33,7 +33,7 @@ jobs:
           - 3306:3306
 
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: photoview
           POSTGRES_PASSWORD: photosecret
@@ -51,18 +51,17 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Build test image
       uses: docker/build-push-action@v6
       with:
-        pull: true
-        push: false
-        load: true
-        target: api
-        tags: photoview/api
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        pull:       true
+        push:       false
+        load:       true
+        target:     api
+        tags:       photoview/api
+        cache-from: type=gha,scope=test-api-${{ hashFiles('api/go.sum', 'scripts/install_*.sh', 'dependencies/*') }}
 
     - name: Test
       id: test
@@ -102,18 +101,18 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Build test image
       uses: docker/build-push-action@v6
       with:
-        pull: true
-        push: false
-        load: true
-        target: ui
-        tags: photoview/ui
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        pull:       true
+        push:       false
+        load:       true
+        target:     ui
+        tags:       photoview/ui
+        cache-from: type=gha,scope=test-ui-${{ hashFiles('ui/package-lock.json') }}
+        cache-to:   type=gha,mode=max,scope=test-ui-${{ hashFiles('ui/package-lock.json') }}
         build-args: |
           NODE_ENV=testing
 
@@ -151,7 +150,7 @@ jobs:
 
     - name: ESLint artifact
       id: eslint-artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ESLint-report
         path: ./ui/eslint-report.txt

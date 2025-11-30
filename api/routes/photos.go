@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"log"
 	"net/http"
 	"os"
 
@@ -9,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/photoview/photoview/api/graphql/models"
+	"github.com/photoview/photoview/api/log"
 	"github.com/photoview/photoview/api/scanner"
 )
 
@@ -26,10 +26,15 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 		}
 
 		media := mediaURL.Media
+		if media == nil {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Media not found"))
+			return
+		}
 
 		if success, response, status, err := authenticateMedia(media, db, r); !success {
 			if err != nil {
-				log.Printf("WARN: error authenticating photo: %s\n", err)
+				log.Warn(r.Context(), "Unauthorized access to photo", "reason", err)
 			}
 			w.WriteHeader(status)
 			w.Write([]byte(response))
@@ -38,7 +43,7 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 
 		cachedPath, err := mediaURL.CachedPath()
 		if err != nil {
-			log.Printf("ERROR: %s\n", err)
+			log.Error(r.Context(), "error getting cached path for media URL", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(internalServerError))
 			return
@@ -46,23 +51,30 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 
 		if _, err := os.Stat(cachedPath); os.IsNotExist((err)) {
 			// err := db.Transaction(func(tx *gorm.DB) error {
-			if err = scanner.ProcessSingleMedia(db, media); err != nil {
-				log.Printf("ERROR: processing image not found in cache (%s): %s\n", cachedPath, err)
+			if err = scanner.ProcessSingleMediaFunc(r.Context(), db, media); err != nil {
+				log.Error(r.Context(), "processing image not found in cache",
+					"media_cache_path", cachedPath,
+					"error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(internalServerError))
 				return
 			}
 
 			if _, err = os.Stat(cachedPath); err != nil {
-				log.Printf("ERROR: after reprocessing image not found in cache (%s): %s\n", cachedPath, err)
+				log.Error(r.Context(), "after reprocessing image not found in cache",
+					"media_cache_path", cachedPath,
+					"error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(internalServerError))
 				return
 			}
 		}
 
-		// Allow caching the resource for 1 day
-		w.Header().Set("Cache-Control", "private, max-age=86400, immutable")
+		// Allow caching the resource
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+		if mediaURL.ContentType != "" {
+			w.Header().Set("Content-Type", mediaURL.ContentType)
+		}
 
 		http.ServeFile(w, r, cachedPath)
 	})

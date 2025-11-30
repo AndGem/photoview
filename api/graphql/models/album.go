@@ -99,11 +99,16 @@ func (a *Album) Thumbnail(db *gorm.DB) (*Media, error) {
 		)
 		SELECT * FROM media
 		WHERE media.album_id IN (SELECT id FROM sub_albums)
+		ORDER BY media.id DESC
 		LIMIT 1
 	`
 
 	if err := db.Raw(query, a.ID).Scan(&media).Error; err != nil {
 		return nil, err
+	}
+
+	if media.ID == 0 {
+		return nil, nil // Return nil for empty albums
 	}
 
 	return &media, nil

@@ -3,16 +3,15 @@ package processing_tasks
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/photoview/photoview/api/graphql/models"
+	"github.com/photoview/photoview/api/log"
 	"github.com/photoview/photoview/api/scanner/media_encoding"
 	"github.com/photoview/photoview/api/scanner/media_encoding/executable_worker"
-	"github.com/photoview/photoview/api/scanner/media_encoding/media_utils"
 	"github.com/photoview/photoview/api/scanner/scanner_task"
 	"github.com/photoview/photoview/api/utils"
 	"github.com/pkg/errors"
@@ -31,7 +30,7 @@ func (t ProcessVideoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 	updatedURLs := make([]*models.MediaURL, 0)
 	video := mediaData.Media
 
-	log.Printf("Processing video: %s", video.Path)
+	log.Info(ctx, "Processing video", "video", video.Path)
 
 	mediaURLFromDB := makePhotoURLChecker(ctx.GetDB(), video.ID)
 
@@ -144,7 +143,7 @@ func (t ProcessVideoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 			return []*models.MediaURL{}, errors.Wrapf(err, "failed to generate thumbnail for video (%s)", video.Title)
 		}
 
-		thumbDimensions, err := media_utils.GetPhotoDimensions(thumbImagePath)
+		thumbDimensions, err := media_encoding.GetPhotoDimensions(thumbImagePath)
 		if err != nil {
 			return []*models.MediaURL{}, errors.Wrap(err, "get dimensions of video thumbnail image")
 		}
@@ -174,7 +173,7 @@ func (t ProcessVideoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 		thumbImagePath := path.Join(mediaCachePath, videoThumbnailURL.MediaName)
 
 		if _, err := os.Stat(thumbImagePath); os.IsNotExist(err) {
-			fmt.Printf("Video thumbnail found in database but not in cache, re-encoding photo to cache: %s\n", videoThumbnailURL.MediaName)
+			log.Info(ctx, "Video thumbnail found in database but not in cache, re-encoding video thumbnail to cache", "video", videoThumbnailURL.MediaName)
 			updatedURLs = append(updatedURLs, videoThumbnailURL)
 
 			err = executable_worker.Ffmpeg.EncodeVideoThumbnail(video.Path, thumbImagePath, probeData)
@@ -182,7 +181,7 @@ func (t ProcessVideoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 				return []*models.MediaURL{}, errors.Wrapf(err, "failed to generate thumbnail for video (%s)", video.Title)
 			}
 
-			thumbDimensions, err := media_utils.GetPhotoDimensions(thumbImagePath)
+			thumbDimensions, err := media_encoding.GetPhotoDimensions(thumbImagePath)
 			if err != nil {
 				return []*models.MediaURL{}, errors.Wrap(err, "get dimensions of video thumbnail image")
 			}

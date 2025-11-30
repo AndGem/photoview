@@ -21,7 +21,7 @@ fi
 
 dpkg --add-architecture $DEBIAN_ARCH
 apt-get update
-apt-get install -y git curl crossbuild-essential-${DEBIAN_ARCH} libc-dev:${DEBIAN_ARCH} autoconf automake libtool m4 pkg-config cmake
+apt-get install -y git curl crossbuild-essential-${DEBIAN_ARCH} libc-dev:${DEBIAN_ARCH} autoconf automake libtool m4 pkg-config cmake dpkg-dev
 
 dpkg-architecture -a $DEBIAN_ARCH >/env
 export $(cat /env)
@@ -31,7 +31,7 @@ GOOS="$TARGETOS"
 GOARCH="$TARGETARCH"
 
 GOARM="7"
-if [ "$TARGETARCH" = "arm" && ! -z "$TARGETVARIANT" ]; then
+if [ "$TARGETARCH" = "arm" ] && [ ! -z "$TARGETVARIANT" ]; then
   case "$TARGETVARIANT" in
   "v5")
     export GOARM="5"
