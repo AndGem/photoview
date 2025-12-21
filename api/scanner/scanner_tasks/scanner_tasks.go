@@ -3,6 +3,7 @@ package scanner_tasks
 import (
 	"fmt"
 	"io/fs"
+	"time"
 
 	"github.com/photoview/photoview/api/graphql/models"
 	"github.com/photoview/photoview/api/log"
@@ -69,6 +70,9 @@ func (t scannerTasks) BeforeScanAlbum(ctx scanner_task.TaskContext) (scanner_tas
 }
 
 func (t scannerTasks) MediaFound(ctx scanner_task.TaskContext, fileInfo fs.FileInfo, mediaPath string) (bool, error) {
+	var totalTaskTime time.Duration
+	taskTimes := make(map[string]time.Duration)
+
 	for _, task := range allTasks {
 		select {
 		case <-ctx.Done():
@@ -76,17 +80,26 @@ func (t scannerTasks) MediaFound(ctx scanner_task.TaskContext, fileInfo fs.FileI
 		default:
 		}
 
+		start := time.Now()
 		skip, err := task.MediaFound(ctx, fileInfo, mediaPath)
+		elapsed := time.Since(start)
+
+		taskName := fmt.Sprintf("%T", task)
+		taskTimes[taskName] += elapsed
+		totalTaskTime += elapsed
 
 		if err != nil {
 			return false, err
 		}
 
 		if skip {
-			log.Info(ctx, "skip the media", "media_path", mediaPath, "by_task", fmt.Sprintf("%T", task))
-			return true, nil
+			log.Info(ctx, "skip the media", "media_path", mediaPath, "by_task", taskName)
+			break
 		}
 	}
+
+	// Optionally log task timing for analysis (can be commented out in production)
+	log.Debug(ctx, "MediaFound task timing", "media_path", mediaPath, "total_task_time", totalTaskTime, "per_task", taskTimes)
 
 	return false, nil
 }

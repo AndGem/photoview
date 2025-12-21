@@ -113,7 +113,6 @@ func ScanAlbum(ctx scanner_task.TaskContext) error {
 
 	return nil
 }
-
 func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 	start := time.Now()
 
@@ -136,55 +135,84 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 		scanErrors int
 	)
 
+	// Timings
+	var (
+		symlinkTime     time.Duration
+		fileInfoTime    time.Duration
+		mediaTaskTime   time.Duration
+		dbScanTime      time.Duration
+		mediaPathTime   time.Duration
+		ifConditionTime time.Duration
+	)
+
 	for _, item := range dirContent {
 		totalItems++
 
-		mediaPath := path.Join(ctx.GetAlbum().Path, item.Name())
-		// log.Debug(ctx, "Check the media", "media_path", mediaPath)
+		mediaPathStart := time.Now()
+		mediaPath := path.Join(albumPath, item.Name())
+		mediaPathTime += time.Since(mediaPathStart)
 
+		// --- Check if dir symlink ---
+		symlinkStart := time.Now()
 		isDirSymlink, err := utils.IsDirSymlink(mediaPath)
 		if err != nil {
 			log.Warn(ctx, "Cannot detect whether the path is symlink to a directory. Pretending it is not", "media_path", mediaPath)
 			isDirSymlink = false
 		}
+		symlinkTime += time.Since(symlinkStart)
 
-		if !item.IsDir() && !isDirSymlink && ctx.GetCache().IsPathMedia(mediaPath) {
-			candidates++
+		if item.IsDir() || isDirSymlink {
+			continue
+		}
 
-			itemInfo, err := item.Info()
+		if !ctx.GetCache().IsPathMediaEntry(item, mediaPath) {
+			continue
+		}
+
+		candidates++
+
+		// --- Get file info ---
+		fileInfoStart := time.Now()
+		itemInfo, err := item.Info()
+		fileInfoTime += time.Since(fileInfoStart)
+		if err != nil {
+			return nil, err
+		}
+
+		// --- Media task check ---
+		mediaTaskStart := time.Now()
+		skip, err := scanner_tasks.Tasks.MediaFound(ctx, itemInfo, mediaPath)
+		mediaTaskTime += time.Since(mediaTaskStart)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			skipped++
+			continue
+		}
+
+		// --- Database scan & media processing ---
+		dbScanStart := time.Now()
+		err = ctx.DatabaseTransaction(func(ctx scanner_task.TaskContext) error {
+			media, isNewMedia, err := ScanMedia(ctx.GetDB(), mediaPath, albumID, ctx.GetCache())
 			if err != nil {
-				return nil, err
-			}
-			skip, err := scanner_tasks.Tasks.MediaFound(ctx, itemInfo, mediaPath)
-			if err != nil {
-				return nil, err
-			}
-			if skip {
-				skipped++
-				continue
+				return errors.Wrapf(err, "scanning media error (%s)", mediaPath)
 			}
 
-			err = ctx.DatabaseTransaction(func(ctx scanner_task.TaskContext) error {
-				media, isNewMedia, err := ScanMedia(ctx.GetDB(), mediaPath, albumID, ctx.GetCache())
-				if err != nil {
-					return errors.Wrapf(err, "scanning media error (%s)", mediaPath)
-				}
-
-				if err = scanner_tasks.Tasks.AfterMediaFound(ctx, media, isNewMedia); err != nil {
-					return err
-				}
-
-				albumMedia = append(albumMedia, media)
-				scanned++
-
-				return nil
-			})
-
-			if err != nil {
-				scanErrors++
-				scanner_utils.ScannerError(ctx, "Error scanning media for album (%d): %s\n", ctx.GetAlbum().ID, err)
-				continue
+			if err = scanner_tasks.Tasks.AfterMediaFound(ctx, media, isNewMedia); err != nil {
+				return err
 			}
+
+			albumMedia = append(albumMedia, media)
+			scanned++
+			return nil
+		})
+		dbScanTime += time.Since(dbScanStart)
+
+		if err != nil {
+			scanErrors++
+			scanner_utils.ScannerError(ctx, "Error scanning media for album (%d): %s\n", albumID, err)
+			continue
 		}
 	}
 
@@ -194,13 +222,19 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 		ctx,
 		"Finished scanning album media",
 		"album_path", albumPath,
-		"album_id", ctx.GetAlbum().ID,
+		"album_id", albumID,
 		"total_items", totalItems,
 		"candidates", candidates,
 		"scanned", scanned,
 		"skipped", skipped,
 		"errors", scanErrors,
 		"duration", elapsed,
+		"timing_symlink", symlinkTime,
+		"timing_file_info", fileInfoTime,
+		"timing_media_task", mediaTaskTime,
+		"timing_db_scan", dbScanTime,
+		"timing_mediaPathTime", mediaPathTime,
+		"timing_ifCondition", ifConditionTime,
 	)
 
 	if err != nil {

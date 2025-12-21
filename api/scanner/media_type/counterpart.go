@@ -4,6 +4,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // FindWebCounterpart returns the filename if the file `imagePath` has a counterpart file competible with the browser.
@@ -22,21 +23,26 @@ func FindRawCounterpart(imagePath string) (string, bool) {
 	})
 }
 
+var globCache sync.Map // map[string][]string
+
 func findCounterpart(filename string, acceptFn func(filepath string) bool) (string, bool) {
 	ext := path.Ext(filename)
-	filenamePattern := strings.TrimSuffix(filename, ext) + ".*"
+	pattern := strings.TrimSuffix(filename, ext) + ".*"
 
-	filenames, err := filepath.Glob(filenamePattern)
-	if err != nil {
-		return "", false
+	var filenames []string
+	if v, ok := globCache.Load(pattern); ok {
+		filenames = v.([]string)
+	} else {
+		var err error
+		filenames, err = filepath.Glob(pattern)
+		if err != nil {
+			return "", false
+		}
+		globCache.Store(pattern, filenames)
 	}
 
 	for _, f := range filenames {
-		if f == filename {
-			continue
-		}
-
-		if acceptFn(f) {
+		if f != filename && acceptFn(f) {
 			return f, true
 		}
 	}

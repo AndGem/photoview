@@ -1,6 +1,7 @@
 package scanner_cache
 
 import (
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -121,6 +122,30 @@ func (c *AlbumScannerCache) IsPathMedia(mediaPath string) bool {
 	// Make sure file isn't empty
 	fileStats, err := os.Stat(mediaPath)
 	if err != nil || fileStats.Size() == 0 {
+		return false
+	}
+
+	return true
+}
+
+func (c *AlbumScannerCache) IsPathMediaEntry(
+	entry fs.DirEntry,
+	mediaPath string,
+) bool {
+	name := entry.Name()
+
+	// Ignore hidden files
+	if len(name) > 0 && name[0] == '.' {
+		return false
+	}
+
+	mediaType := c.GetMediaType(mediaPath)
+	if !mediaType.IsSupported() {
+		return false
+	}
+
+	info, err := entry.Info()
+	if err != nil || info.Size() == 0 {
 		return false
 	}
 
