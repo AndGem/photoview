@@ -130,31 +130,6 @@ func TestAlbumGetChildrenAndParents(t *testing.T) {
 func TestAlbumThumbnail(t *testing.T) {
 	db := test_utils.DatabaseTest(t)
 
-<<<<<<< HEAD
-	media := models.Media{
-		Title: "test.png",
-		Path:  "path/test.png",
-		Type:  models.MediaTypePhoto,
-		MediaURL: []models.MediaURL{
-			{
-				MediaName:   "photo.jpg",
-				ContentType: "image/jpeg",
-				Purpose:     models.PhotoHighRes,
-			},
-			{
-				MediaName:   "thumbnail.jpg",
-				ContentType: "image/jpeg",
-				Purpose:     models.PhotoThumbnail,
-			},
-			{
-				MediaName:   "photo.png",
-				ContentType: "image/png",
-				Purpose:     models.MediaOriginal,
-			},
-		},
-	}
-
-=======
 	mediaAlbum := models.Album{
 		Title: "Media album",
 		Path:  "/media_album",
@@ -167,7 +142,7 @@ func TestAlbumThumbnail(t *testing.T) {
 		Path:    "thumb.jpg",
 		AlbumID: mediaAlbum.ID,
 	}
->>>>>>> upstream/master
+
 	if !assert.NoError(t, db.Save(&media).Error) {
 		return
 	}

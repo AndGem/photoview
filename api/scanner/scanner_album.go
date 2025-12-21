@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/photoview/photoview/api/graphql/models"
 	"github.com/photoview/photoview/api/log"
@@ -114,17 +115,32 @@ func ScanAlbum(ctx scanner_task.TaskContext) error {
 }
 
 func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
+	start := time.Now()
 
 	albumMedia := make([]*models.Media, 0)
 
-	dirContent, err := os.ReadDir(ctx.GetAlbum().Path)
+	album := ctx.GetAlbum()
+	albumPath := album.Path
+	albumID := album.ID
+
+	dirContent, err := os.ReadDir(albumPath)
 	if err != nil {
 		return nil, err
 	}
 
+	var (
+		totalItems int
+		candidates int
+		scanned    int
+		skipped    int
+		scanErrors int
+	)
+
 	for _, item := range dirContent {
+		totalItems++
+
 		mediaPath := path.Join(ctx.GetAlbum().Path, item.Name())
-		log.Info(ctx, "Check the media", "media_path", mediaPath)
+		// log.Debug(ctx, "Check the media", "media_path", mediaPath)
 
 		isDirSymlink, err := utils.IsDirSymlink(mediaPath)
 		if err != nil {
@@ -133,6 +149,8 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 		}
 
 		if !item.IsDir() && !isDirSymlink && ctx.GetCache().IsPathMedia(mediaPath) {
+			candidates++
+
 			itemInfo, err := item.Info()
 			if err != nil {
 				return nil, err
@@ -142,11 +160,12 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 				return nil, err
 			}
 			if skip {
+				skipped++
 				continue
 			}
 
 			err = ctx.DatabaseTransaction(func(ctx scanner_task.TaskContext) error {
-				media, isNewMedia, err := ScanMedia(ctx.GetDB(), mediaPath, ctx.GetAlbum().ID, ctx.GetCache())
+				media, isNewMedia, err := ScanMedia(ctx.GetDB(), mediaPath, albumID, ctx.GetCache())
 				if err != nil {
 					return errors.Wrapf(err, "scanning media error (%s)", mediaPath)
 				}
@@ -156,16 +175,42 @@ func findMediaForAlbum(ctx scanner_task.TaskContext) ([]*models.Media, error) {
 				}
 
 				albumMedia = append(albumMedia, media)
+				scanned++
 
 				return nil
 			})
 
 			if err != nil {
+				scanErrors++
 				scanner_utils.ScannerError(ctx, "Error scanning media for album (%d): %s\n", ctx.GetAlbum().ID, err)
 				continue
 			}
 		}
+	}
 
+	elapsed := time.Since(start)
+
+	log.Info(
+		ctx,
+		"Finished scanning album media",
+		"album_path", albumPath,
+		"album_id", ctx.GetAlbum().ID,
+		"total_items", totalItems,
+		"candidates", candidates,
+		"scanned", scanned,
+		"skipped", skipped,
+		"errors", scanErrors,
+		"duration", elapsed,
+	)
+
+	if err != nil {
+		scanner_utils.ScannerError(
+			ctx,
+			"Error scanning media for album (%d): %s\n",
+			albumID,
+			err,
+		)
+		return nil, err
 	}
 
 	return albumMedia, nil

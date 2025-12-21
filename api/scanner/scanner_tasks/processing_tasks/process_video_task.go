@@ -30,7 +30,7 @@ func (t ProcessVideoTask) ProcessMedia(ctx scanner_task.TaskContext, mediaData *
 	updatedURLs := make([]*models.MediaURL, 0)
 	video := mediaData.Media
 
-	log.Info(ctx, "Processing video", "video", video.Path)
+	// log.Info(ctx, "Processing video", "video", video.Path)
 
 	mediaURLFromDB := makePhotoURLChecker(ctx.GetDB(), video.ID)
 

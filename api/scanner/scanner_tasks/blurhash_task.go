@@ -32,7 +32,7 @@ func (t BlurhashTask) AfterProcessMedia(ctx scanner_task.TaskContext, mediaData 
 	}
 
 	if media.Blurhash != nil && !hasThumbnailUpdated {
-		log.Info(ctx, "No thumbnail updated, ignore generating blurhash", "media", media.Path)
+		// log.Info(ctx, "No thumbnail updated, ignore generating blurhash", "media", media.Path)
 		return nil
 	}
 
